@@ -7,34 +7,53 @@
 #include "get_next_line.h"
 
 
+#include "MLX42.h"
 
 
 typedef struct s_ply
 {
     char **map;
-    int i ;
-    int j ;
+    int x ;
+    int y ;
+    int xexit;
+    int yexit;
+    mlx_t* mlx;
+    mlx_image_t* wall;
+    mlx_image_t* zero;
+    mlx_image_t* exit;
+    mlx_image_t* player;
+    mlx_image_t* coin;
+
 }t_ply;
 
-int county_line(int fd) 
+int county_line(char *file) 
 {
-    char buffer[1024] ;
-    int nline = 0;
-    int nbytes;
-    int i=0;
+
+    int fd = open(file, O_RDONLY);
+    if(fd < 0)
+    {
+        
+    }
+    char buffer[24];
+    int nline = 1;
+    int nbytes = 0;
+    int i = 0;
 
     while ((nbytes = read(fd, buffer, 1)) > 0  )
     {
-    
+
         if(ft_strchr(buffer))
             nline++;
         i++;
     }
+    
+    close(fd);
     return nline;
 }
 
 #include <fcntl.h>
 #include <unistd.h>
+
 int ft_error_map(char **str)
 {
     int i = 0;
@@ -62,7 +81,7 @@ int ft_error_map(char **str)
         }
         if(res !=1 || coin < 1 || player != 1 || zayd != 0 )
         {
-            printf("error inside the map");
+            ft_putstr("error inside the map");
             return 1;
         }
         return 0;
@@ -78,7 +97,7 @@ int ft_error_wall(char *tmp)
                    i++;
             else
             {
-                printf("error in the wall");
+                ft_putstr("error in the wall");
                 return 1;
             }
         
@@ -93,7 +112,7 @@ int ft_error_frwall(char **ptr)
     {
         if(ptr[i][0] != '1' && ptr[i][0] != '\n' && ptr[i][0] != '\0')
         {
-            printf("error in the first wall");
+            ft_putstr("error in the first wall");
             return 1;
         }
         i++;
@@ -109,7 +128,7 @@ int ft_error_scwall(char **ptr)
         len = ft_strlen(ptr[i])-1;
         if((ptr[i][len-1] != '1') && ptr[i][len-1] != '\n' && ptr[i][len-1] != '\0')
         {
-            printf("error in the second  wall\n");
+            ft_putstr("error in the second  wall\n");
             return 1;
         }
         i++;
@@ -133,7 +152,7 @@ int ft_error_line(char **tab)
         if(len != j  && i != k-1) 
         {
            
-            printf("line error\n");
+            ft_putstr("line error\n");
             return 1;
         }
         len++;
@@ -141,12 +160,12 @@ int ft_error_line(char **tab)
     }
     if(len  != j )
     {
-        printf("line error in last \n");
+        ft_putstr("line error in last \n");
         return 1;
     }
     if(len <= k +1)
     {
-        printf("map is not rectangular\n");
+        ft_putstr("map is not rectangular\n");
         return 1;
     }
     return 0;
@@ -202,7 +221,7 @@ int	ft_error_chmap(char **map)
 		{
 			if (map[i][j] == 'C' || map[i][j] == 'E')
 			{
-                    printf("map invalid \n");
+                    ft_putstr("map invalid \n");
                     return (1);
             }
 			j++;
@@ -220,43 +239,47 @@ int ft_count_map(char **map)
         i++;
     return i;
 }
-void parsse_error(char **map)
+
+void parsse_error(t_ply *kask)
 {
-    int line_count = ft_count_map(map);
-    char **tmp = malloc( (line_count + 1) * sizeof(char *)       );
+    int line_count = ft_count_map(kask->map);
+    char **tmp = malloc( (line_count + 1) * sizeof(char *));
     int i;
     i = 0;
-    while(map[i])
+    while(kask->map[i])
     {
-        tmp[i] = ft_strdup(map[i]);
+        tmp[i] = ft_strdup(kask->map[i]);
         i++;
     }
     tmp[i] = NULL;
-    // exit(0);
-    if(ft_error_map(map) == 1 || ft_error_wall(map[0]) == 1 || ft_error_wall(map[i-1]) == 1 || ft_error_frwall(map) == 1 ||
-    ft_error_scwall(map) == 1 || ft_error_line(map) == 1)
+    if(ft_error_map(kask->map) == 1 || ft_error_wall(kask->map[0]) == 1 || ft_error_wall(kask->map[i-1]) == 1 || ft_error_frwall(kask->map) == 1 ||
+    ft_error_scwall(kask->map) == 1 || ft_error_line(kask->map) == 1)
     {
-        ft_free(map);
+        ft_free(kask->map);
+        ft_free(tmp);
         exit(1);
     } 
     ft_player(tmp);
     if(ft_error_chmap(tmp) == 1)
     {
+        ft_free(kask->map);
         ft_free(tmp);
         exit(1);
     }
+    ft_free(tmp);
 }
 
 char **ft_read_map(char *mp)
 {
+
+
+
+    int line_count = county_line(mp);
     int fd = open(mp, O_RDONLY);
-    int line_count = county_line(fd);
-    close(fd);
-    fd = open("txt.txt", O_RDONLY);
     char **map = malloc((line_count + 1) * sizeof(char *));
     int i = 0;
     char *line;
-    while ((line = get_next_line(fd)) !=NULL || line_count > i) 
+    while ((line = get_next_line(fd)) != NULL) //to remove 
     {
         
         map[i] = line;
@@ -272,161 +295,177 @@ void print_map(char **map)
     int j = 0;
     while(map[j])
     {
-        printf("%s", map[j]);
         j++;
+    }
+    write(1,"\n",1);
+}
+
+void ft_graph(t_ply *mpr)
+{
+        int i = 0;
+    int j =0;
+    while(mpr->map[i])
+    {
+        j= 0;
+        while (mpr->map[i][j])
+        {
+            if(mpr->map[i][j] == '1')
+            {
+                mlx_image_to_window(mpr->mlx, mpr->wall, j*50,i*50 );
+
+            }
+            if(mpr->map[i][j] == '0')
+            {
+                mlx_image_to_window(mpr->mlx, mpr->zero, j*50,i*50 );
+
+            }
+            if(mpr->map[i][j] == 'P')
+            {
+                mlx_image_to_window(mpr->mlx, mpr->player, j*50,i*50 );
+            }
+            if(mpr->map[i][j] == 'C')
+            {
+                mlx_image_to_window(mpr->mlx, mpr->coin, j*50,i*50 );
+            }
+            if(mpr->map[i][j] == 'E')
+            {
+                mlx_image_to_window(mpr->mlx, mpr->exit, j*50,i*50 ) ;
+            }
+            j++;
+        }
+        i++;
     }
 }
 
 // #include <MLX42/MLX42.h>
-#include "MLX42.h"
-
-
 void ft_hook( mlx_key_data_t keyboard ,void* param)
 {
     t_ply *prm = (t_ply*)param;
-
-
 	if (keyboard.key == MLX_KEY_ESCAPE )
 	{
-                    printf("gg");
+                    ft_putstr("game exit");
+                    ft_free(prm->map);
+                    free(prm);
                     exit(0);
     }
 
-	if (keyboard.key ==MLX_KEY_UP) 
+	if (keyboard.key ==MLX_KEY_UP && prm->map[prm->y - 1][prm->x] != '1'  && (keyboard.action == MLX_PRESS || keyboard.action == MLX_REPEAT)) 
     {
-        printf("UP\n");
+        ft_putstr("UP\n");
+        prm->map[prm->y - 1][prm->x] = 'P';
+        prm->map[prm->y][prm->x] = '0' ;
+        prm->y = prm->y - 1;
+
     }        
-	if (keyboard.key ==MLX_KEY_DOWN) 
+	if (keyboard.key ==MLX_KEY_DOWN && prm->map[prm->y + 1][prm->x] != '1' && (keyboard.action == MLX_PRESS || keyboard.action == MLX_REPEAT)) 
     {
-            printf("DOWN\n");
+            ft_putstr("DOWN\n");
+            prm->map[prm->y + 1][prm->x] = 'P';
+        prm->map[prm->y][prm->x] = '0' ;
+        prm->y = prm->y+1;
     }
-	if (keyboard.key ==MLX_KEY_LEFT)
+	if (keyboard.key ==MLX_KEY_LEFT && prm->map[prm->y][prm->x - 1] != '1'  && (keyboard.action == MLX_PRESS || keyboard.action == MLX_REPEAT))
     {
-        printf("LEFT\n");
+        ft_putstr("LEFT\n");
+        prm->map[prm->y][prm->x-1] = 'P';
+        prm->map[prm->y][prm->x] = '0' ;
+        prm->x = prm->x - 1;
     }
-        
-	if (keyboard.key ==MLX_KEY_RIGHT) 
-    {  
-        printf("RIGHT\n");
+	if (keyboard.key == MLX_KEY_RIGHT && prm->map[prm->y][prm->x + 1] != '1'  && (keyboard.action == MLX_PRESS || keyboard.action == MLX_REPEAT))
+    {
+        ft_putstr("RIGHT\n");
+        prm->map[prm->y][prm->x+1] = 'P';
+        prm->map[prm->y][prm->x] = '0' ;
+        prm->x = prm->x + 1;
     }
+
+    ft_graph(prm);
 }
 
-
-
-int game(char **map)
+void    ft_init(t_ply *info)
 {
-
-    t_ply x ;
-    int WIDTH = ft_strlen(map[0])* 50  - 50;
-    int HEIGHT = ft_count_map(map) * 50 ;
-
-    mlx_t* mlx;
-
-	// Gotta error check this stuff
-	if (!(mlx = mlx_init(WIDTH, HEIGHT, "so_long", false)))
-	{
-		puts(mlx_strerror(mlx_errno));
-        // free map
-        return(EXIT_FAILURE);
-	}
-		// mlx_close_window(mlx);  
-    mlx_texture_t* texture = mlx_load_png("./images.png");
-    mlx_image_t* wall = mlx_texture_to_image(mlx, texture);
-        mlx_delete_texture(texture);
-    mlx_texture_t* textureplyr = mlx_load_png("./player.png");
-    mlx_image_t* player = mlx_texture_to_image(mlx, textureplyr);
-        mlx_delete_texture(textureplyr);
-    
-    mlx_texture_t* texturecoin = mlx_load_png("./imagesCOIN.png");
-    mlx_image_t* coin = mlx_texture_to_image(mlx, texturecoin);
-        mlx_delete_texture(texturecoin);
-    
-    mlx_texture_t* textureexit = mlx_load_png("./exit.png");
-    mlx_image_t* exit = mlx_texture_to_image(mlx, textureexit);
-        mlx_delete_texture(textureexit);
-    
-    mlx_texture_t* texturezero = mlx_load_png("./wero.png");
-    mlx_image_t* zero = mlx_texture_to_image(mlx, texturezero);
-        mlx_delete_texture(texturezero);
-
-	// if (!(image = mlx_new_image(mlx, WIDTH, HEIGHT )))
-	// {
-    // 	mlx_terminate(mlx);
-    //     // free map
-	// 	puts(mlx_strerror(mlx_errno));
-	// 	return(EXIT_FAILURE);
-	// }
-
-    int i = 0;
-    int j =0;
-    x.map = map;
-        while(map[i])
+            int i = 0;
+            int j =0;
+        while(info->map[i])
         {
             j= 0;
-            while (map[i][j])
+            while (info->map[i][j])
             {
-                if(map[i][j] == '1')
+                if(info->map[i][j] == 'E')
                 {
-                    if (mlx_image_to_window(mlx, wall, j*50,i*50 ) == -1)
-                    {
-                        mlx_close_window(mlx);
-                        puts(mlx_strerror(mlx_errno));
-                        return(EXIT_FAILURE);
-                    }
-
+                        info->xexit = j;
+                        info->yexit = i;
+                    
                 }
-                if(map[i][j] == '0')
+                if(info->map[i][j] == 'P')
                 {
-                    if (mlx_image_to_window(mlx, zero, j*50,i*50 ) == -1)
-                    {
-                        mlx_close_window(mlx);
-                        puts(mlx_strerror(mlx_errno));
-                        return(EXIT_FAILURE);
-                    }
-
-                }
-                if(map[i][j] == 'P')
-                {
-                    x.i = i;
-                    x.j = j;
-                    if (mlx_image_to_window(mlx, player, j*50,i*50 ) == -1)
-                    {
-                        mlx_close_window(mlx);
-                        puts(mlx_strerror(mlx_errno));
-                        return(EXIT_FAILURE);
-                    }
-
-                }
-                if(map[i][j] == 'C')
-                {
-                    if (mlx_image_to_window(mlx, coin, j*50,i*50 ) == -1)
-                    {
-                            mlx_close_window(mlx);
-                            puts(mlx_strerror(mlx_errno));
-                            return(EXIT_FAILURE);
-                    }
-                }
-                if(map[i][j] == 'E')
-                {
-                    if (mlx_image_to_window(mlx, exit, j*50,i*50 ) == -1)
-                    {
-                        mlx_close_window(mlx);
-                        puts(mlx_strerror(mlx_errno));
-                        return(EXIT_FAILURE);
-                    }
+                    info->y = i;
+                    info->x = j;
                 }
                 j++;
             }
             i++;
         }
-    printf("\nmap\n");
-     print_map(x.map);
-    printf("\nI = %d\n",x.i);
-    printf("J = %d\n",x.j);
+}
 
+
+int game(t_ply *mpr)
+{
+
+    t_ply x ;
+    int WIDTH = ft_strlen(mpr->map[0])* 50  ;
+    int HEIGHT = ft_count_map(mpr->map) * 50 ;
+
+    mlx_t* mlx;
+
+
+	// Gotta error check this stuff
+	if (!(mlx = mlx_init(WIDTH, HEIGHT, "so_long", false)))
+	{
+        return(EXIT_FAILURE);
+	}
+	// mlx_image_t *image = mlx_new_image(mlx, WIDTH, HEIGHT);
+
+    mpr->mlx = mlx;
+    // mlx_image_to_window(mpr->mlx, image, 0, 0) ;
+    
+    mlx_texture_t* texture = mlx_load_png("./images.png");
+    mpr->wall = mlx_texture_to_image(mlx, texture);
+    mlx_delete_texture(texture);
+
+    mlx_texture_t* texture1 = mlx_load_png("./player.png");
+    mpr->player = mlx_texture_to_image(mlx, texture1);
+        mlx_delete_texture(texture1);
+    
+   mlx_texture_t *texture2 = mlx_load_png("./imagesCOIN.png");
+    mpr->coin = mlx_texture_to_image(mlx, texture2);
+        mlx_delete_texture(texture2);
+    
+    mlx_texture_t *texture3 = mlx_load_png("./exit.png");
+    mpr->exit = mlx_texture_to_image(mlx, texture3);
+        mlx_delete_texture(texture3);
+    
+   mlx_texture_t* texture4 = mlx_load_png("./wero.png");
+        mpr->zero = mlx_texture_to_image(mlx, texture4);
+        mlx_delete_texture(texture4);
+
+	// if (!(image = mlx_new_image(mlx, WIDTH, HEIGHT )))
+	// {
+    // 	mlx_terminate(mlx);
+    //     // free mpr->map
+	// 	puts(mlx_strerror(mlx_errno));
+	// 	return(EXIT_FAILURE);
+	// }
+
+
+  
+    ft_graph(mpr);
+
+	// mlx_image_to_window(mlx, image, 0, 0);
+	mlx_key_hook(mlx, &ft_hook, mpr);
 	
-	mlx_key_hook(mlx, &ft_hook, &x);
-	mlx_loop(mlx);
+    
+    mlx_loop(mlx);
 	mlx_terminate(mlx);
 	return (EXIT_SUCCESS);
 }
@@ -436,12 +475,43 @@ int game(char **map)
 
 int main(int ac , char *av[]) 
 {
+    if(ac != 2)
+    {
+        ft_putstr("name of the map !!");
+        exit(1);
+    }
+    int i = 0;
+    while(av[1][i])
+            i++;
+    int j = 0;
+        while(av[1][i])
+        {
+            if(av[1][i] =='r' )
+            {
+                i--;
+                if(av[1][i] =='e')
+                    i--;
+                if(av[1][i] == 'b')
+                    i--;
+                if(av[1][i] == '.')
+                    i--;
+            }
+            else
+                exit(1);
+        }
 
-    (void)ac ;
-    char **map = ft_read_map(av[1]);  
-    parsse_error(map);
-     print_map(map);
-    game(map);
+    
+    t_ply *cortab = malloc(sizeof(t_ply));
+    
+    char **map = ft_read_map(av[1]);
+    cortab->map = map;
+    ft_init(cortab);
+    parsse_error(cortab);
+
+
+    game(cortab);
+
     ft_free(map);
+    free(cortab);
     // close (fd);
 }
